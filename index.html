@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BitArchive | Industrial Steganography</title>
+    
+    <!-- Bootstrap 5.3 CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+
+    <style>
+        /* --- General & Hidden Elements --- */
+        canvas,
+        .drop-zone input[type="file"],
+        .crypto-fields,
+        .download-btn,
+        .result-area,
+        .copy-btn {
+            display: none;
+        }
+
+        .preview-img {
+            max-width: 100%;
+            max-height: 250px;
+            display: none;
+            object-fit: contain;
+        }
+
+        /* --- Drop Zones --- */
+        .drop-zone {
+            border: 2px dashed #495057;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease-in-out;
+            background: #121212;
+            color: rgba(255, 255, 255, 0.6) !important;
+        }
+
+        .drop-zone:hover, 
+        .drop-zone.drag-over {
+            border-color: #ffc107;
+            color: #fff !important;
+            background: #1a1a1a;
+            box-shadow: 0 0 15px rgba(255, 193, 7, 0.3);
+        }
+
+        /* --- Forms & Typography --- */
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.5) !important;
+            opacity: 1;
+        }
+
+        /* --- Results Area --- */
+        .result-container {
+            position: relative;
+        }
+
+        .result-area {
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+        }
+
+        /* --- Buttons --- */
+        .btn-warning {
+            transition: all 0.3s ease !important;
+        }
+
+        .btn-warning:hover {
+            box-shadow: 0 0 15px rgba(255, 193, 7, 0.5) !important;
+            background-color: #ffca2c !important;
+        }
+    </style>
+  
+    <script type="application/ld+json">
+    {
+        "@context": "urn:goose.ai:schema",
+        "@type": "GooseApp",
+        "name": "steganohide",
+        "description": "Industrial-themed steganography tool to hide encrypted/plain text in images with custom filename export.",
+        "width": 1000,
+        "height": 800,
+        "resizable": true,
+        "mcpServers": ["apps"]
+    }
+    </script>
+</head>
+<body class="bg-black text-light py-5">
+
+    <div class="container" style="max-width: 1100px;">
+        <!-- Header -->
+        <header class="border-start border-warning border-5 ps-3 mb-5">
+            <h1 class="display-5 fw-bold text-uppercase tracking-wider">BitArchive</h1>
+            <p class="text-white-50 text-uppercase small mb-0">Industrial Grade Steganography // Data Concealment</p>
+        </header>
+
+        <div class="row g-4">
+            <!-- --- Encode Section --- -->
+            <div class="col-md-6">
+                <div class="card bg-dark text-light border-secondary h-100 p-4 shadow">
+                    <h2 class="h5 text-uppercase border-bottom border-secondary pb-3 mb-4 d-flex align-items-center gap-3">
+                        <span class="badge bg-warning text-dark fs-6 rounded-0">01</span> Encode Message
+                    </h2>
+                    
+                    <div class="mb-4">
+                        <div class="drop-zone rounded text-white-50" id="encode-drop-zone">
+                            <p class="mb-0 text-uppercase small">Drop Source Image or Click</p>
+                            <img id="encode-preview" class="preview-img mt-3 img-thumbnail bg-black border-secondary" alt="Encode Preview">
+                            <input type="file" id="encode-input" accept="image/png, image/jpeg, image/bmp">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <textarea id="encode-text" class="form-control bg-black text-light border-secondary rounded-0 font-monospace" rows="4" placeholder="SECRET DATA..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="encode-encrypt-check">
+                        <label class="form-check-label text-uppercase text-white-50 small" for="encode-encrypt-check">Enable AES-256 Encryption</label>
+                    </div>
+
+                    <div class="crypto-fields mb-3 p-3 bg-black border-start border-warning border-3" id="encode-crypto-fields">
+                        <label class="form-label text-uppercase text-white-50 small fw-bold">Security Passphrase</label>
+                        <input type="password" id="encode-password" class="form-control bg-dark text-light border-secondary rounded-0 font-monospace" placeholder="Enter key...">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-uppercase text-white-50 small fw-bold">Output Filename</label>
+                        <input type="text" id="encode-filename" class="form-control bg-black text-light border-secondary rounded-0 font-monospace" value="image.png" placeholder="e.g. secret.png">
+                    </div>
+                    
+                    <div class="alert alert-dark bg-black border-start border-warning border-3 rounded-0 small text-uppercase text-white mb-4" role="alert" style="border-top: none; border-right: none; border-bottom: none;">
+                        <strong class="text-warning d-block mb-1">System Alert:</strong> Output must be saved as <strong>PNG</strong>. Lossy formats (JPG) will corrupt hidden data.
+                    </div>
+                    
+                    <button id="btn-embed" class="btn btn-warning w-100 rounded-2 fw-bold text-uppercase py-3 shadow-sm">Embed Data</button>
+                    <a id="btn-download" class="btn btn-success download-btn w-100 rounded-2 fw-bold text-uppercase py-3 mt-3 shadow-sm">Download Archive</a>
+                    <div id="encode-status" class="mt-3 text-center text-uppercase fw-bold small"></div>
+                </div>
+            </div>
+
+            <!-- --- Decode Section --- -->
+            <div class="col-md-6">
+                <div class="card bg-dark text-light border-secondary h-100 p-4 shadow">
+                    <h2 class="h5 text-uppercase border-bottom border-secondary pb-3 mb-4 d-flex align-items-center gap-3">
+                        <span class="badge bg-warning text-dark fs-6 rounded-0">02</span> Decode Message
+                    </h2>
+                    
+                    <div class="mb-4">
+                        <div class="drop-zone rounded text-white-50" id="decode-drop-zone">
+                            <p class="mb-0 text-uppercase small">Drop Archived Image or Click</p>
+                            <img id="decode-preview" class="preview-img mt-3 img-thumbnail bg-black border-secondary" alt="Decode Preview">
+                            <input type="file" id="decode-input" accept="image/png">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="decode-encrypt-check">
+                        <label class="form-check-label text-uppercase text-white-50 small" for="decode-encrypt-check">Message is Encrypted</label>
+                    </div>
+
+                    <div class="crypto-fields mb-3 p-3 bg-black border-start border-warning border-3" id="decode-crypto-fields">
+                        <label class="form-label text-uppercase text-white-50 small fw-bold">Decryption Passphrase</label>
+                        <input type="password" id="decode-password" class="form-control bg-dark text-light border-secondary rounded-0 font-monospace" placeholder="Enter key...">
+                    </div>
+                    
+                    <button id="btn-reveal" class="btn btn-warning w-100 rounded-2 fw-bold text-uppercase py-3 mb-3 shadow-sm">Extract Data</button>
+                    
+                    <div class="result-container">
+                        <button id="btn-copy" class="btn btn-outline-warning copy-btn rounded-2 text-uppercase fw-bold">Copy</button>
+                        <div id="decode-result" class="result-area p-3 bg-black border border-secondary text-light mb-3 rounded-0"></div>
+                    </div>
+                    
+                    <div id="decode-status" class="text-center text-uppercase fw-bold small"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Canvas for Image Processing -->
+    <canvas id="main-canvas"></canvas>
+
+    <script>
+        /**
+         * BitArchive Industrial Logic
+         * - Format: [Magic 'BARC' (4b)] [Encrypted Flag (1b)] [Payload Length (4b)] [Payload]
+         * - Encryption: AES-GCM 256-bit with PBKDF2 key derivation.
+         */
+
+        // --- DOM Elements ---
+        const encodeDropZone     = document.getElementById('encode-drop-zone');
+        const encodeInput        = document.getElementById('encode-input');
+        const encodePreview      = document.getElementById('encode-preview');
+        const encodeText         = document.getElementById('encode-text');
+        const encodeEncryptCheck = document.getElementById('encode-encrypt-check');
+        const encodeCryptoFields = document.getElementById('encode-crypto-fields');
+        const encodePassword     = document.getElementById('encode-password');
+        const encodeFilename     = document.getElementById('encode-filename');
+        const btnEmbed           = document.getElementById('btn-embed');
+        const btnDownload        = document.getElementById('btn-download');
+        const encodeStatus       = document.getElementById('encode-status');
+
+        const decodeDropZone     = document.getElementById('decode-drop-zone');
+        const decodeInput        = document.getElementById('decode-input');
+        const decodePreview      = document.getElementById('decode-preview');
+        const decodeEncryptCheck = document.getElementById('decode-encrypt-check');
+        const decodeCryptoFields = document.getElementById('decode-crypto-fields');
+        const decodePassword     = document.getElementById('decode-password');
+        const btnReveal          = document.getElementById('btn-reveal');
+        const decodeResult       = document.getElementById('decode-result');
+        const decodeStatus       = document.getElementById('decode-status');
+        const btnCopy            = document.getElementById('btn-copy');
+
+        const canvas             = document.getElementById('main-canvas');
+        const ctx                = canvas.getContext('2d');
+
+
+        // --- Crypto Helpers ---
+        async function deriveKey(password, salt) {
+            const encoder = new TextEncoder();
+            const baseKey = await crypto.subtle.importKey(
+                'raw', 
+                encoder.encode(password), 
+                'PBKDF2', 
+                false, 
+                ['deriveKey']
+            );
+            return crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: 100000,
+                    hash: 'SHA-256'
+                },
+                baseKey,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt', 'decrypt']
+            );
+        }
+
+        async function encryptMessage(text, password) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text);
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const key = await deriveKey(password, salt);
+            
+            const encrypted = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                data
+            );
+
+            const ciphertext = new Uint8Array(encrypted);
+            const combined = new Uint8Array(1 + 16 + 12 + ciphertext.length);
+            
+            combined[0] = 1; // Encrypted flag
+            combined.set(salt, 1);
+            combined.set(iv, 17);
+            combined.set(ciphertext, 29);
+            
+            return combined;
+        }
+
+        async function decryptMessage(combined, password) {
+            const salt = combined.slice(1, 17);
+            const iv = combined.slice(17, 29);
+            const ciphertext = combined.slice(29);
+            const key = await deriveKey(password, salt);
+
+            try {
+                const decrypted = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    key,
+                    ciphertext
+                );
+                return new TextDecoder().decode(decrypted);
+            } catch (e) {
+                throw new Error('Decryption failed. Invalid password?');
+            }
+        }
+
+
+        // --- UI & Event Handlers ---
+        function showStatus(el, msg, type) {
+            el.textContent = msg;
+            el.className = type === 'error' 
+                ? 'mt-3 text-center text-uppercase fw-bold small text-danger' 
+                : 'mt-3 text-center text-uppercase fw-bold small text-success';
+        }
+
+        function handleFile(file, previewEl) {
+            if (!file || !file.type.startsWith('image/')) {
+                alert('Error: Please upload a valid image file.');
+                return null;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewEl.src = e.target.result;
+                previewEl.style.display = 'block';
+                
+                const paragraph = previewEl.parentNode.querySelector('p');
+                if (paragraph) {
+                    paragraph.style.display = 'none';
+                }
+            };
+            reader.readAsDataURL(file);
+            return file;
+        }
+
+        // Checkbox Toggles
+        encodeEncryptCheck.addEventListener('change', () => {
+            encodeCryptoFields.style.display = encodeEncryptCheck.checked ? 'block' : 'none';
+        });
+
+        decodeEncryptCheck.addEventListener('change', () => {
+            decodeCryptoFields.style.display = decodeEncryptCheck.checked ? 'block' : 'none';
+        });
+
+        // Drag & Drop Listeners
+        [encodeDropZone, decodeDropZone].forEach(zone => {
+            zone.addEventListener('click', () => zone.querySelector('input').click());
+            
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('drag-over');
+            });
+            
+            zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+            
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('drag-over');
+                const file = e.dataTransfer.files[0];
+                if (zone.id === 'encode-drop-zone') {
+                    handleFile(file, encodePreview);
+                } else {
+                    handleFile(file, decodePreview);
+                }
+            });
+        });
+
+        // File Input Listeners
+        encodeInput.addEventListener('change', (e) => handleFile(e.target.files[0], encodePreview));
+        decodeInput.addEventListener('change', (e) => handleFile(e.target.files[0], decodePreview));
+
+        // Copy Button Listener
+        btnCopy.addEventListener('click', () => {
+            const textToCopy = decodeResult.textContent;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                btnCopy.textContent = 'Copied!';
+                btnCopy.classList.replace('btn-outline-warning', 'btn-success');
+                setTimeout(() => {
+                    btnCopy.textContent = 'Copy';
+                    btnCopy.classList.replace('btn-success', 'btn-outline-warning');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        });
+
+
+        // --- Embedding Core ---
+        btnEmbed.addEventListener('click', async () => {
+            const text = encodeText.value;
+            if (!text) {
+                return showStatus(encodeStatus, 'Input error: No message provided.', 'error');
+            }
+            if (!encodePreview.src) {
+                return showStatus(encodeStatus, 'Input error: No image loaded.', 'error');
+            }
+            if (encodeEncryptCheck.checked && !encodePassword.value) {
+                return showStatus(encodeStatus, 'Security error: Passphrase required.', 'error');
+            }
+
+            btnEmbed.disabled = true;
+            btnEmbed.textContent = 'Processing...';
+
+            try {
+                const img = new Image();
+                img.src = encodePreview.src;
+                await img.decode();
+
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                let payload;
+                if (encodeEncryptCheck.checked) {
+                    payload = await encryptMessage(text, encodePassword.value);
+                } else {
+                    const textBytes = new TextEncoder().encode(text);
+                    payload = new Uint8Array(1 + textBytes.length);
+                    payload[0] = 0; // Plain flag
+                    payload.set(textBytes, 1);
+                }
+
+                // Packet creation
+                const magic = new TextEncoder().encode('BARC');
+                const packet = new Uint8Array(4 + 4 + payload.length);
+                packet.set(magic, 0);
+                
+                const len = payload.length;
+                packet[4] = (len >> 24) & 0xFF;
+                packet[5] = (len >> 16) & 0xFF;
+                packet[6] = (len >> 8) & 0xFF;
+                packet[7] = len & 0xFF;
+                packet.set(payload, 8);
+
+                if (packet.length > data.length) {
+                    throw new Error('Image too small to hold this data packet.');
+                }
+
+                let binMsg = "";
+                for (let i = 0; i < packet.length; i++) {
+                    binMsg += packet[i].toString(2).padStart(8, '0');
+                }
+
+                for (let i = 0; i < binMsg.length; i++) {
+                    data[i] = (data[i] & 0xFE) | parseInt(binMsg[i]);
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+                
+                const dataUrl = canvas.toDataURL('image/png');
+                btnDownload.href = dataUrl;
+                btnDownload.download = encodeFilename.value || 'image.png';
+                btnDownload.style.display = 'block';
+                
+                showStatus(encodeStatus, 'Success: Data embedded.', 'success');
+            } catch (err) {
+                showStatus(encodeStatus, err.message || 'Processing error occurred.', 'error');
+            } finally {
+                btnEmbed.disabled = false;
+                btnEmbed.textContent = 'Embed Data';
+            }
+        });
+
+
+        // --- Extraction Core ---
+        btnReveal.addEventListener('click', async () => {
+            if (!decodePreview.src) {
+                return showStatus(decodeStatus, 'Input error: No image loaded.', 'error');
+            }
+            if (decodeEncryptCheck.checked && !decodePassword.value) {
+                return showStatus(decodeStatus, 'Security error: Passphrase required.', 'error');
+            }
+
+            btnReveal.disabled = true;
+            btnReveal.textContent = 'Extracting...';
+
+            try {
+                const img = new Image();
+                img.src = decodePreview.src;
+                await img.decode();
+
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                let binMsg = "";
+                for (let i = 0; i < data.length; i++) {
+                    binMsg += (data[i] & 1).toString();
+                }
+
+                const allBytes = new Uint8Array(binMsg.length / 8);
+                for (let i = 0; i < allBytes.length; i++) {
+                    allBytes[i] = parseInt(binMsg.substr(i * 8, 8), 2);
+                }
+
+                const magic = new TextDecoder().decode(allBytes.slice(0, 4));
+                if (magic !== 'BARC') {
+                    throw new Error('No valid BitArchive header found.');
+                }
+
+                const len = (allBytes[4] << 24) | (allBytes[5] << 16) | (allBytes[6] << 8) | allBytes[7];
+                if (len < 0 || len > 10000000) {
+                    throw new Error('Invalid packet length detected.');
+                }
+
+                const payload = allBytes.slice(8, 8 + len);
+                const isEncrypted = payload[0] === 1;
+
+                if (isEncrypted) {
+                    if (!decodeEncryptCheck.checked) {
+                        throw new Error('Detected encrypted data. Please enable "Message is Encrypted".');
+                    }
+                    const decryptedText = await decryptMessage(payload, decodePassword.value);
+                    decodeResult.textContent = decryptedText;
+                } else {
+                    if (decodeEncryptCheck.checked) {
+                        throw new Error('Detected plain data. Please disable "Message is Encrypted".');
+                    }
+                    const plainText = new TextDecoder().decode(payload.slice(1));
+                    decodeResult.textContent = plainText;
+                }
+
+                decodeResult.style.display = 'block';
+                btnCopy.style.display = 'block';
+                showStatus(decodeStatus, 'Success: Data extracted.', 'success');
+
+            } catch (err) {
+                decodeResult.style.display = 'none';
+                btnCopy.style.display = 'none';
+                showStatus(decodeStatus, err.message || 'Extraction error.', 'error');
+            } finally {
+                btnReveal.disabled = false;
+                btnReveal.textContent = 'Extract Data';
+            }
+        });
+    </script>
+</body>
+</html>
